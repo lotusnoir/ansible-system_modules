@@ -1,0 +1,8 @@
+---
+modules_add_list:
+  - nf_conntrack$
+  - nf_defrag_ipv4
+  - xt_conntrack
+#  - nf_conntrack_ipv4
+
+modules_remove_list: []
