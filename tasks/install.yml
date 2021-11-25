@@ -1,7 +1,26 @@
 ---
+- name: "REDHAT - Install kmod package"
+  dnf:
+    name: kmod
+    state: present
+  when: ansible_os_family == 'RedHat' or ansible_os_family == 'Rocky'
+
+- name: "Check for {{ modules_file }}"
+  stat:
+    path: "{{ modules_file }}"
+  changed_when: false
+  register: module_file
+
+- name: Ensure {{ modules_file }} exists
+  file:
+    path: "{{ modules_file }}"
+    state: touch
+    mode: 0644
+  when: not module_file.stat.exists
+
 - name: "Add modules on modules.conf"
   lineinfile:
-    dest: /etc/modules-load.d/modules.conf
+    dest: "{{ modules_file }}"
     regexp: "^{{ item }}"
     line: "{{ item }}"
     state: present
@@ -10,7 +29,7 @@
 
 - name: "Remove modules on modules.conf"
   lineinfile:
-    dest: /etc/modules-load.d/modules.conf
+    dest: "{{ modules_file }}"
     regexp: "^{{ item }}"
     state: absent
   with_items:
