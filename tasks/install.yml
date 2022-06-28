@@ -16,35 +16,38 @@
     path: "{{ modules_file }}"
     state: touch
     mode: 0644
-  when: not module_file.stat.exists
+  when: not module_file.stat.exists and (ansible_os_family != 'Rocky' or ansible_distribution != 'RedHat')
 
-- name: "Add modules on modules.conf"
-  ansible.builtin.lineinfile:
-    dest: "{{ modules_file }}"
-    regexp: "^{{ item }}"
-    line: "{{ item }}"
-    state: present
-  with_items:
-    - "{{ modules_add_list }}"
+- name: Initialise conditions for no rhel8 family
+  when: not (ansible_os_family == 'Rocky' or ansible_os_family == 'RedHat')
+  block:
+    - name: "Add modules on modules.conf"
+      ansible.builtin.lineinfile:
+        dest: "{{ modules_file }}"
+        regexp: "^{{ item }}"
+        line: "{{ item }}"
+        state: present
+      with_items:
+        - "{{ modules_add_list }}"
 
-- name: "Remove modules on modules.conf"
-  ansible.builtin.lineinfile:
-    dest: "{{ modules_file }}"
-    regexp: "^{{ item }}"
-    state: absent
-  with_items:
-    - "{{ modules_remove_list }}"
+    - name: "Remove modules on modules.conf"
+      ansible.builtin.lineinfile:
+        dest: "{{ modules_file }}"
+        regexp: "^{{ item }}"
+        state: absent
+      with_items:
+        - "{{ modules_remove_list }}"
 
-- name: "Immediately Load modules"
-  community.general.modprobe:
-    name: "{{ item }}"
-    state: present
-  with_items:
-    - "{{ modules_add_list }}"
+    - name: "Immediately Load modules"
+      community.general.modprobe:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - "{{ modules_add_list }}"
 
-- name: "Immediately Remove modules"
-  community.general.modprobe:
-    name: "{{ item }}"
-    state: absent
-  with_items:
-    - "{{ modules_remove_list }}"
+    - name: "Immediately Remove modules"
+      community.general.modprobe:
+        name: "{{ item }}"
+        state: absent
+      with_items:
+        - "{{ modules_remove_list }}"
