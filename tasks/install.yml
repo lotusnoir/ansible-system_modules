@@ -1,9 +1,9 @@
 ---
 - name: "REDHAT - Install kmod package"
-  ansible.builtin.dnf:
+  ansible.builtin.yum:
     name: kmod
     state: present
-  when: ansible_os_family == 'RedHat' or ansible_os_family == 'Rocky'
+  when: ansible_os_family in ["RedHat", "Rocky", "OracleLinux"]
 
 - name: "Check for {{ modules_file }}"
   ansible.builtin.stat:
@@ -11,7 +11,7 @@
   changed_when: false
   register: module_file
 
-- name: Ensure {{ modules_file }} exists
+- name: "Ensure {{ modules_file }} exists"
   ansible.builtin.file:
     path: "{{ modules_file }}"
     state: touch
