@@ -4,5 +4,7 @@
   become: true
   any_errors_fatal: true
 
-  roles:
-    - role: ansible-system_modules
+  tasks:
+    - name: Include role
+      ansible.builtin.include_role:
+        name: ansible-system_modules
