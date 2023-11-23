@@ -3,6 +3,10 @@
   ansible.builtin.yum:
     name: kmod
     state: present
+  register: pkg_result
+  retries: 12
+  delay: 10
+  until: pkg_result is success
   when: ansible_os_family in ["RedHat", "Rocky", "OracleLinux"]
 
 - name: "Check for {{ modules_file }}"
