@@ -15,7 +15,7 @@
   changed_when: false
   register: module_file
 
-- name: "Ensure {{ modules_file }} exists"
+- name: "Ensure config file exists"
   ansible.builtin.file:
     path: "{{ modules_file }}"
     state: touch
