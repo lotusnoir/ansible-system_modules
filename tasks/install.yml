@@ -1,6 +1,6 @@
 ---
 - name: "REDHAT - Install kmod package"
-  ansible.builtin.yum:
+  ansible.builtin.dnf:
     name: kmod
     state: present
   register: pkg_result
@@ -19,7 +19,7 @@
   ansible.builtin.file:
     path: "{{ modules_file }}"
     state: touch
-    mode: '0644'
+    mode: "0644"
   when: not module_file.stat.exists and (ansible_os_family != 'Rocky' or ansible_distribution != 'RedHat')
 
 - name: Initialise conditions for no rhel8 family
