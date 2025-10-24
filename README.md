@@ -22,6 +22,7 @@
 ## Description
 
 Add or remove kernel modules
+
 ## Requirements
 
 none
@@ -39,7 +40,6 @@ See [variables](/defaults/main.yml) for more details.
           gather_facts: true
           roles:
             - role: ansible-system_modules
-
 
 ## License
 
