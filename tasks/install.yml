@@ -7,7 +7,7 @@
   retries: 12
   delay: 10
   until: __pkg_result is success
-  when: ansible_os_family in ["RedHat", "Rocky", "OracleLinux"]
+  when: ansible_facts.os_family in ["RedHat", "Rocky", "OracleLinux"]
 
 - name: "Check for {{ modules_file }}"
   ansible.builtin.stat:
@@ -20,10 +20,10 @@
     path: "{{ modules_file }}"
     state: touch
     mode: "0644"
-  when: not module_file.stat.exists and (ansible_os_family != 'Rocky' or ansible_distribution != 'RedHat')
+  when: not module_file.stat.exists and (ansible_facts.os_family != 'Rocky' or ansible_facts.distribution != 'RedHat')
 
 - name: Initialise conditions for no rhel8 family
-  when: not (ansible_os_family == 'Rocky' or ansible_os_family == 'RedHat')
+  when: not (ansible_facts.os_family == 'Rocky' or ansible_facts.os_family == 'RedHat')
   block:
     - name: "Add modules on modules.conf"
       ansible.builtin.lineinfile:
