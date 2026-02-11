@@ -1,9 +1,9 @@
 ---
-modules_file: "/etc/modules-load.d/modules.conf"
 modules_add_list: []
 #  - nf_conntrack
 #  - nf_defrag_ipv4
 #  - xt_conntrack
 #  - nf_conntrack_ipv4
 
-modules_remove_list: []
+modules_blacklist: []
+#  - i2c_piix4
