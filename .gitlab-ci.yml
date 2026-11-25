@@ -1,43 +1,187 @@
 ---
 stages:
+  - molecule
   - changes
   - push
+  - trigger
 
 variables:
   GITHUB_USER: lotusnoir
   ANSIBLE_REMOTE_TMP: /tmp
   PY_COLORS: 1
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  key: "${CI_PROJECT_NAME}-deps"
+  paths:
+    - .cache/pip
+    - .ansible/
+
+######################################################
+# DEFINE CHANGES RULES
+######################################################
+.molecule_job_template: &molecule_job_template
+  stage: molecule
+  rules:
+    # Exécuter uniquement si un fichier pertinent change
+    - changes:
+#        - ".gitlab-ci.yml"
+        - "defaults/**"
+        - "files/**"
+        - "handlers/**"
+        - "meta/**"
+        - "tasks/**"
+        - "templates/**"
+        - "vars/**"
+        - "molecule/*/**"   # Inclut tous les fichiers dans chaque scenario
+        - "molecule/*"      # Inclut le scenario lui-même (utile pour playbook.yml)
+    - when: never           # Sinon, ne pas exécuter
+
+######################################################
+# RUN MOLECULE FOR EACH DISTRIB
+######################################################
+molecule_debian12:
+  <<: *molecule_job_template
+  image: lotusnoir/molecule_play:2.18.11
+  script:
+    - MOLECULE_DISTRIB=debian12 molecule test
+molecule_debian11:
+  <<: *molecule_job_template
+  image: lotusnoir/molecule_play:2.18.11
+  script:
+    - MOLECULE_DISTRIB=debian11 molecule test
+molecule_debian13:
+  <<: *molecule_job_template
+  image: lotusnoir/molecule_play:2.18.11
+  script:
+    - MOLECULE_DISTRIB=debian13 molecule test
+molecule_oraclelinux10:
+  <<: *molecule_job_template
+  image: lotusnoir/molecule_play:2.18.11
+  tags:
+    - avx2
+  script:
+    - MOLECULE_DISTRIB=oraclelinux10 molecule test
+molecule_oraclelinux8:
+  <<: *molecule_job_template
+  image: lotusnoir/molecule_play:2.15.13
+  script:
+    - MOLECULE_DISTRIB=oraclelinux8 molecule test
+molecule_oraclelinux9:
+  <<: *molecule_job_template
+  image: lotusnoir/molecule_play:2.18.11
+  script:
+    - MOLECULE_DISTRIB=oraclelinux9 molecule test
+molecule_redhat10:
+  <<: *molecule_job_template
+  image: lotusnoir/molecule_play:2.18.11
+  tags:
+    - avx2
+  script:
+    - MOLECULE_DISTRIB=redhat10 molecule test
+molecule_redhat8:
+  <<: *molecule_job_template
+  image: lotusnoir/molecule_play:2.15.13
+  script:
+    - MOLECULE_DISTRIB=redhat8 molecule test
+molecule_redhat9:
+  <<: *molecule_job_template
+  image: lotusnoir/molecule_play:2.18.11
+  script:
+    - MOLECULE_DISTRIB=redhat9 molecule test
+molecule_rocky10:
+  <<: *molecule_job_template
+  image: lotusnoir/molecule_play:2.18.11
+  tags:
+    - avx2
+  script:
+    - MOLECULE_DISTRIB=rocky10 molecule test
+molecule_rocky8:
+  <<: *molecule_job_template
+  image: lotusnoir/molecule_play:2.15.13
+  script:
+    - MOLECULE_DISTRIB=rocky8 molecule test
+molecule_rocky9:
+  <<: *molecule_job_template
+  image: lotusnoir/molecule_play:2.18.11
+  script:
+    - MOLECULE_DISTRIB=rocky9 molecule test
+molecule_ubuntu22:
+  <<: *molecule_job_template
+  image: lotusnoir/molecule_play:2.18.11
+  script:
+    - MOLECULE_DISTRIB=ubuntu22 molecule test
+molecule_ubuntu24:
+  <<: *molecule_job_template
+  image: lotusnoir/molecule_play:2.18.11
+  script:
+    - MOLECULE_DISTRIB=ubuntu24 molecule test
+molecule_ubuntu26:
+  <<: *molecule_job_template
+  image: lotusnoir/molecule_play:2.18.11
+  script:
+    - MOLECULE_DISTRIB=ubuntu26 molecule test
 
 ######################################################
 # GENERATE CHANGELOG FILE
 ######################################################
 changelog:
   stage: changes
-  image: node:19
+  image: lotusnoir/gitlab_pipeline_bot:latest
+  needs:
+    - job: molecule_debian12
+      optional: true
+    - job: molecule_debian11
+      optional: true
+    - job: molecule_debian13
+      optional: true
+    - job: molecule_oraclelinux10
+      optional: true
+    - job: molecule_oraclelinux8
+      optional: true
+    - job: molecule_oraclelinux9
+      optional: true
+    - job: molecule_redhat10
+      optional: true
+    - job: molecule_redhat8
+      optional: true
+    - job: molecule_redhat9
+      optional: true
+    - job: molecule_rocky10
+      optional: true
+    - job: molecule_rocky8
+      optional: true
+    - job: molecule_rocky9
+      optional: true
+    - job: molecule_ubuntu22
+      optional: true
+    - job: molecule_ubuntu24
+      optional: true
+    - job: molecule_ubuntu26
+      optional: true
   artifacts:
     paths:
       - CHANGELOG.md
+      - ansible-system_modules/
     expire_in: 1 day
   before_script:
-    - apt-get update -qq && apt-get install -y git rsync
-    - npm install -g auto-changelog
     - git config --global user.name "CI Bot"
     - git config --global user.email "ci@${CI_SERVER_HOST}"
 
   script:
-    # 1️⃣ Clone GitHub repository (source of truth)
+    # 1️⃣ Clone GitHub repository (source of truth) — partial clone: full history/tags, no blobs
     - mkdir -p ~/.ssh
     - echo "$GITHUB_USER_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
     - chmod 600 ~/.ssh/id_ed25519
     - echo -e "Host github.com\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
     - eval $(ssh-agent -s)
     - ssh-add ~/.ssh/id_ed25519
-    - git clone git@github.com:${GITHUB_USER}/ansible-system_modules.git tmp_repo
-    - cd tmp_repo
-    - git fetch --tags
+    - rm -rf ansible-system_modules
+    - git clone git@github.com:${GITHUB_USER}/ansible-system_modules.git ansible-system_modules
+    - cd ansible-system_modules
 
     # 2️⃣ Merge local GitLab changes as working tree diff (no commits)
-    - rsync -av --exclude .git "${CI_PROJECT_DIR}/" ./
+    - rsync -av --exclude .git --exclude .cache --exclude .ansible --exclude ansible-system_modules "${CI_PROJECT_DIR}/" ./
 
     # 3️⃣ Skip changelog if last commit is already a changelog
     - LAST_MSG="$(git log -1 --pretty=%B || echo '')"
@@ -62,7 +206,7 @@ changelog:
         --hide-credit \
         -b 50
 
-    # 6️⃣ Copy changelog to CI project root
+    # 6️⃣ Copy changelog to CI project root (artifact also keeps ansible-system_modules/ for reuse in push stage)
     - cp CHANGELOG.md ${CI_PROJECT_DIR}/
 
 ##################################################
@@ -70,11 +214,10 @@ changelog:
 ##################################################
 push_src_on_github:
   stage: push
-  image: alpine:latest
+  image: lotusnoir/gitlab_pipeline_bot:latest
   needs:
     - changelog
   before_script:
-    - apk add git openssh-client
     - eval $(ssh-agent -s)
     - echo "${GITHUB_USER_PRIVATE_KEY}" | tr -d '\r' | ssh-add -
     - mkdir -p ~/.ssh
@@ -89,12 +232,33 @@ push_src_on_github:
         echo "⚠️  Changelog marqué 'skip' — aucun push GitHub effectué.";
         exit 0;
       fi
-    - git clone git@github.com:${GITHUB_USER}/ansible-system_modules.git /tmp/ansible-system_modules
-    - find /tmp/ansible-system_modules -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf "{}" +;
-    - rm -rf .git
-    - cp -r . /tmp/ansible-system_modules/
-    - cd /tmp/ansible-system_modules
+    # Reuse the repo already cloned+merged in the changelog job (artifact), no re-clone needed
+    - cd ansible-system_modules
     - git add -A
     # - git diff --quiet && echo "✅ Aucun changement à pousser." && exit 0
     - git commit -m "${COMMENT}" || echo "No changes, nothing to commit!"
     - git push --follow-tags
+
+##################################################
+# TRIGGER COLLECTION GENERATION
+##################################################
+trigger_collection:
+  stage: trigger
+  needs:
+    - push_src_on_github
+
+  trigger:
+    project: ansible-roles_base/ansible-collection-base
+    branch: main
+    strategy: depend
+
+  rules:
+    # .gitlab-ci.yml uniquement → ne pas déclencher
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - .gitlab-ci.yml
+      when: never
+
+    # Tout autre changement → déclencher
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: on_success
